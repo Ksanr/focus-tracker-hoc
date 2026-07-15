@@ -1,4 +1,4 @@
-import React, { useRef, useState, useCallback, useEffect, forwardRef, useImperativeHandle } from 'react';
+import React, { useRef, useState, useCallback, forwardRef, useImperativeHandle } from 'react';
 
 // Типы для пропсов, которые добавляет HOC
 export interface FocusTrackerInjectedProps {
@@ -8,9 +8,6 @@ export interface FocusTrackerInjectedProps {
   onBlur?: (event: React.FocusEvent) => void;
 }
 
-// Тип для компонента, который будет обёрнут
-export type WithFocusTrackerProps<P> = P & FocusTrackerInjectedProps;
-
 /**
  * HOC withFocusTracker — добавляет отслеживание фокуса к оборачиваемому компоненту.
  *
@@ -18,21 +15,19 @@ export type WithFocusTrackerProps<P> = P & FocusTrackerInjectedProps;
  * @returns Новый компонент с пропсами FocusTrackerInjectedProps
  */
 export function withFocusTracker<P extends object>(
-  WrappedComponent: React.ComponentType<P>
+  WrappedComponent: React.ComponentType<P & FocusTrackerInjectedProps>
 ) {
   // Сохраняем имя для отладки
   const displayName = WrappedComponent.displayName || WrappedComponent.name || 'Component';
 
   // Создаём компонент-обёртку с использованием forwardRef для проброса ref
-  const FocusTracker = forwardRef<HTMLElement, P & FocusTrackerInjectedProps>(
-    (props, ref) => {
+  const FocusTracker = forwardRef<HTMLElement, P>((props, ref) => {
       const {
-        isFocused: _isFocusedProp, // игнорируем, если передали извне
         onFocusChange,
         onFocus: onFocusProp,
         onBlur: onBlurProp,
         ...restProps
-      } = props;
+      } = props as any;
 
       // Состояние фокуса
       const [isFocused, setIsFocused] = useState(false);
@@ -58,7 +53,6 @@ export function withFocusTracker<P extends object>(
       }, [onFocusChange, onBlurProp]);
 
       // Подписка на события (для случаев, когда фокус может измениться без событий, например, через программный фокус)
-      // Но в React события focus/blur отрабатывают корректно.
 
       // Рендерим обёрнутый компонент внутри контейнера, на котором висят обработчики
       // Чтобы события всплывали от дочерних элементов, контейнер должен быть focusable.
@@ -71,7 +65,13 @@ export function withFocusTracker<P extends object>(
           style={{ display: 'contents' }} // чтобы не влиять на вёрстку
           tabIndex={-1}
         >
-          <WrappedComponent {...(restProps as P)} isFocused={isFocused} />
+          <WrappedComponent
+            {...(restProps as P)}
+            isFocused={isFocused}
+            onFocusChange={onFocusChange}
+            onFocus={onFocusProp}
+            onBlur={onBlurProp}
+          />
         </div>
       );
     }
